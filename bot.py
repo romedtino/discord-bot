@@ -19,8 +19,9 @@ app = commands.Bot(intents=INTENTS, command_prefix=None)
 logger = logging.getLogger(__name__)
 
 
-@app.tree.command(name="genimg", description="Generate an image given a prompt.")
+@app_commands.command(name="genimg", description="Generate an image given a prompt.")
 @app_commands.describe(prompt="Text description of the image to generate.", steps="Number of diffusion steps (2-4). Higher values produce more detailed images but take longer.")
+@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 async def genimg(
     interaction: discord.Interaction,
     prompt: str,
@@ -48,6 +49,8 @@ async def genimg(
             content=f"{interaction.user.mention} requested({steps}): {prompt}",
             file=file
         )
+
+app.tree.add_command(genimg)
 
 
 @app.event
