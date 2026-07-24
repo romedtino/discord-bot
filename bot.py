@@ -53,6 +53,7 @@ async def on_ready():
     logger.info("===== on_ready called! =====")
     logger.info("Logged in as %s", app.user)
     logger.info("In %d guilds", len(app.guilds))
+    await _set_presence()
     try:
         synced = await app.tree.sync()
         logger.info("Global sync result: %s commands", len(synced))
@@ -65,6 +66,22 @@ async def on_ready():
         except Exception:
             logger.exception("Failed to sync for guild '%s'", guild.name)
     logger.info("===== on_ready complete =====")
+
+
+@app.event
+async def on_guild_join(guild):
+    await _set_presence()
+
+
+@app.event
+async def on_guild_remove(guild):
+    await _set_presence()
+
+
+async def _set_presence():
+    await app.change_presence(
+        activity=discord.Game(name=f"Chatting with {len(app.guilds)} dragons")
+    )
 
 
 if __name__ == "__main__":
