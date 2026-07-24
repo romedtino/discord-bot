@@ -6,6 +6,7 @@ from pathlib import Path
 
 import discord
 from discord.ext import commands
+from discord import app_commands
 from PIL import Image
 
 import comfyui
@@ -18,7 +19,8 @@ app = commands.Bot(intents=INTENTS, command_prefix=None)
 logger = logging.getLogger(__name__)
 
 
-@app.tree.command(name="genimg")
+@app.tree.command(name="genimg", description="Generate an image given a prompt.")
+@app_commands.describe(prompt="Text description of the image to generate.", steps="Number of diffusion steps (2-4). Higher values produce more detailed images but take longer.")
 async def genimg(
     interaction: discord.Interaction,
     prompt: str,
@@ -43,7 +45,7 @@ async def genimg(
         output.seek(0)
         file = discord.File(output, filename=f"image_{i + 1}.png")
         await interaction.followup.send(
-            content=f"{interaction.user.mention} requested: {prompt}",
+            content=f"{interaction.user.mention} requested({steps}): {prompt}",
             file=file
         )
 
