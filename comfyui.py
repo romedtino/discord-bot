@@ -14,6 +14,12 @@ logger = logging.getLogger(__name__)
 COMFYUI_HOST = os.getenv("COMFYUI_HOST", "localhost:7861")
 WORKFLOW_FILE = os.getenv("WORKFLOW_FILE", "t2i")
 
+_STEPS_CONFIG = {
+    "t2i": (2, 4, 2),
+    "t2i-zimage": (4, 9, 4),
+}
+STEPS_MIN, STEPS_MAX, STEPS_DEFAULT = _STEPS_CONFIG.get(WORKFLOW_FILE, (2, 4, 2))
+
 _WORKFLOW_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "workflows", f"{WORKFLOW_FILE}.json"
 )

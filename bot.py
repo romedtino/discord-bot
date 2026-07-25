@@ -20,14 +20,19 @@ logger = logging.getLogger(__name__)
 
 
 @app_commands.command(name="genimg", description="Generate an image given a prompt.")
-@app_commands.describe(prompt="Text description of the image to generate.", steps="Number of diffusion steps (2-4). Higher values produce more detailed images but take longer.")
+@app_commands.describe(prompt="Text description of the image to generate.", steps="Number of diffusion steps.")
 @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 async def genimg(
     interaction: discord.Interaction,
     prompt: str,
-    steps: discord.app_commands.Range[int, 2, 4] = 2,
+    steps: int = comfyui.STEPS_DEFAULT,
 ):
     await interaction.response.defer(thinking=True)
+    if steps < comfyui.STEPS_MIN or steps > comfyui.STEPS_MAX:
+        await interaction.followup.send(
+            f"Steps must be between {comfyui.STEPS_MIN} and {comfyui.STEPS_MAX} for this workflow."
+        )
+        return
     try:
         loop = asyncio.get_running_loop()
         image_data_list = await loop.run_in_executor(None, comfyui.generate, prompt, steps)
