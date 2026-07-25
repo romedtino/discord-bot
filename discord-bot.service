@@ -1,0 +1,15 @@
+[Unit]
+Description=Discord Bot
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=<UPDATE_PATH_TO>/discord-bot
+ExecStart=<UPDATE_PATH_TO>//discord-bot/.venv/bin/python main.py
+Restart=on-failure
+RestartSec=5
+User=<USER>
+Group=<USER>
+
+[Install]
+WantedBy=multi-user.target
