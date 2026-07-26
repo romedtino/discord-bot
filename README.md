@@ -33,10 +33,10 @@ export DISCORD_BOT_TOKEN="your-bot-token"
 
 ### Discord command
 
-Use `/generate` in any channel the bot has access to:
+Use `/genimg` in any channel the bot has access to:
 
 ```
-/generate prompt: a cat sitting on a windowsill
+/genimg prompt: a cat sitting on a windowsill
 ```
 
 The bot will respond with the generated image(s).
@@ -67,7 +67,7 @@ uv run pytest tests/ -v
 
 ```
 comfyui.py        - ComfyUI API logic (modify workflow, queue prompt, get images)
-bot.py            - Discord bot with /generate command
+bot.py            - Discord bot with /genimg command
 main.py           - Entry point (runs the bot)
 workflows/t2i.json - ComfyUI workflow (text-to-image with SaveImageWebsocket)
 tests/            - Unit tests
