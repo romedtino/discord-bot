@@ -17,6 +17,7 @@ WORKFLOW_FILE = os.getenv("WORKFLOW_FILE", "t2i")
 _STEPS_CONFIG = {
     "t2i": (2, 4, 2),
     "t2i-zimage": (4, 9, 4),
+    "krea": (4, 8, 4),
 }
 STEPS_MIN, STEPS_MAX, STEPS_DEFAULT = _STEPS_CONFIG.get(WORKFLOW_FILE, (2, 4, 2))
 
