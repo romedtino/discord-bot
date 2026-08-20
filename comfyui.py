@@ -164,6 +164,77 @@ def generate(user_prompt, steps=None):
     return next(iter(images.values()))
 
 
+def _get_output(workflow, class_type):
+    """Find a node by class type and return its node id."""
+    for node_id, node_data in workflow.items():
+        if node_data.get("class_type") == class_type:
+            return node_id
+    return None
+
+
+def get_video(user_prompt):
+    """Run a video generation workflow (minimax_h3) and return raw mp4 bytes."""
+    client_id = str(uuid.uuid4())
+    workflow = modify_workflow(BASE_WORKFLOW, user_prompt)
+    output_node = _get_output(workflow, "SaveVideoWebsocket")
+
+    result = queue_prompt(workflow, client_id)
+    prompt_id = result["prompt_id"]
+
+    ws = WebSocket()
+    ws.connect(f"ws://{COMFYUI_HOST}/ws?clientId={client_id}")
+    ws.settimeout(120)
+
+    video_data = None
+    current_node = ""
+    last_node = ""
+    error_nodes = []
+
+    while True:
+        try:
+            out = ws.recv()
+        except Exception:
+            ws.close()
+            return {"__error__": ["websocket_timeout"]}
+        if isinstance(out, str):
+            message = json.loads(out)
+            msg_type = message.get("type")
+            if msg_type == "executing":
+                data = message["data"]
+                if data.get("node") is None:
+                    break
+                if data.get("prompt_id") == prompt_id:
+                    current_node = data["node"]
+                    last_node = current_node
+            elif msg_type == "execution_error":
+                data = message["data"]
+                if data.get("prompt_id") == prompt_id:
+                    error_nodes.append(data.get("node_type"))
+        else:
+            if output_node and last_node == output_node:
+                video_data = out[8:]
+
+    ws.close()
+    if error_nodes:
+        return {"__error__": error_nodes}
+    if not video_data:
+        return {"__error__": ["no_video_output"]}
+    return {output_node: [video_data]}
+
+
+def generate_video(user_prompt):
+    """Run a full video generation and return raw mp4 bytes."""
+    result = get_video(user_prompt)
+    if "__error__" in result:
+        raise RuntimeError(f"ComfyUI video generation failed: {result['__error__']}")
+    if not result:
+        return None
+    video_list = next(iter(result.values()))
+    if not video_list:
+        return None
+    return video_list[0]
+
+
 if __name__ == "__main__":
     from dotenv import load_dotenv
     load_dotenv()

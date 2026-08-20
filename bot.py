@@ -1,5 +1,6 @@
 import io
 import asyncio
+import json
 import logging
 import os
 from pathlib import Path
@@ -56,6 +57,51 @@ async def genimg(
         )
 
 app.tree.add_command(genimg)
+
+
+_WORKFLOWS_DIR = os.path.join(os.path.dirname(comfyui.__file__), "workflows")
+
+
+def _load_workflow(workflow_name):
+    """Load a workflow JSON file from the workflows directory."""
+    wf_path = os.path.join(_WORKFLOWS_DIR, f"{workflow_name}.json")
+    with open(wf_path, "r") as f:
+        return json.load(f)
+
+
+@app_commands.command(name="genvid", description="Generate a video given a prompt.")
+@app_commands.describe(prompt="Text description of the video to generate.")
+@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+async def genvid(
+    interaction: discord.Interaction,
+    prompt: str,
+):
+    await interaction.response.defer(thinking=True)
+    original_workflow = comfyui.BASE_WORKFLOW
+    try:
+        video_workflow = _load_workflow("minimax_h3")
+        comfyui.BASE_WORKFLOW = video_workflow
+
+        loop = asyncio.get_running_loop()
+        video_data = await loop.run_in_executor(None, comfyui.generate_video, prompt)
+    except Exception as e:
+        await interaction.followup.send(f"Error communicating with ComfyUI: {e}")
+        return
+    finally:
+        comfyui.BASE_WORKFLOW = original_workflow
+
+    if not video_data:
+        await interaction.followup.send(
+            "No video was generated. The generation may have failed."
+        )
+        return
+    file = discord.File(io.BytesIO(video_data), filename="video.mp4")
+    await interaction.followup.send(
+        content=f"{interaction.user.mention} requested: {prompt}",
+        file=file
+    )
+
+app.tree.add_command(genvid)
 
 
 @app.event

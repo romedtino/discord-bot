@@ -242,3 +242,118 @@ class TestWorkflowIntegrity:
                 os.environ["COMFYUI_HOST"] = original
             else:
                 os.environ.pop("COMFYUI_HOST", None)
+
+
+class TestGenerateVideo:
+    """Tests for the generate_video function."""
+
+    @patch("comfyui.get_video")
+    def test_returns_video_bytes(self, mock_get_video):
+        mock_get_video.return_value = {"629": [b"MP4DATA"]}
+        result = comfyui.generate_video("a video of a cat")
+        assert isinstance(result, bytes)
+        assert result == b"MP4DATA"
+
+    @patch("comfyui.get_video")
+    def test_returns_none_when_no_video(self, mock_get_video):
+        mock_get_video.return_value = {}
+        result = comfyui.generate_video("a video of a cat")
+        assert result is None
+
+    @patch("comfyui.get_video")
+    def test_raises_on_error_response(self, mock_get_video):
+        mock_get_video.return_value = {"__error__": ["VAELoader"]}
+        with pytest.raises(RuntimeError) as exc_info:
+            comfyui.generate_video("a video of a cat")
+        assert "VAELoader" in str(exc_info.value)
+
+    @patch("comfyui.get_video")
+    def test_passes_prompt_to_get_video(self, mock_get_video):
+        mock_get_video.return_value = {"629": [b"video"]}
+        comfyui.generate_video("test prompt")
+        mock_get_video.assert_called_once_with("test prompt")
+
+
+class TestGetVideo:
+    """Tests for the get_video function."""
+
+    @patch("comfyui.queue_prompt")
+    @patch("comfyui.WebSocket")
+    def test_closes_ws_on_completion(self, mock_ws_class, mock_queue):
+        mock_queue.return_value = {"prompt_id": "pid"}
+        ws = MagicMock()
+        ws_class_iter = iter([
+            json.dumps({"type": "executing", "data": {"node": "2", "prompt_id": "pid"}}),
+            json.dumps({"type": "executing", "data": {"node": None, "prompt_id": "pid"}}),
+        ])
+        ws.recv.side_effect = lambda: next(ws_class_iter)
+        mock_ws_class.return_value = ws
+
+        # Need a workflow with SaveVideoWebsocket node
+        import os
+        original_workflow = comfyui.BASE_WORKFLOW
+        try:
+            wf_path = os.path.join(os.path.dirname(comfyui.__file__), "workflows", "minimax_h3.json")
+            with open(wf_path, "r") as f:
+                comfyui.BASE_WORKFLOW = json.load(f)
+            result = comfyui.get_video("a video")
+        finally:
+            comfyui.BASE_WORKFLOW = original_workflow
+        ws.close.assert_called_once()
+
+    @patch("comfyui.queue_prompt")
+    @patch("comfyui.WebSocket")
+    def test_captures_binary_video_data(self, mock_ws_class, mock_queue):
+        mock_queue.return_value = {"prompt_id": "pid"}
+        ws = MagicMock()
+        ws_class_iter = iter([
+            json.dumps({"type": "executing", "data": {"node": "2", "prompt_id": "pid"}}),
+            json.dumps({"type": "executing", "data": {"node": "629", "prompt_id": "pid"}}),
+            b"\x00" * 8 + b"MP4DATA123",
+            json.dumps({"type": "executing", "data": {"node": None, "prompt_id": "pid"}}),
+        ])
+        ws.recv.side_effect = lambda: next(ws_class_iter)
+        mock_ws_class.return_value = ws
+
+        import os
+        original_workflow = comfyui.BASE_WORKFLOW
+        try:
+            wf_path = os.path.join(os.path.dirname(comfyui.__file__), "workflows", "minimax_h3.json")
+            with open(wf_path, "r") as f:
+                comfyui.BASE_WORKFLOW = json.load(f)
+            result = comfyui.get_video("a video")
+        finally:
+            comfyui.BASE_WORKFLOW = original_workflow
+
+        video_data = result.get("629", [])
+        assert len(video_data) == 1
+        assert video_data[0] == b"MP4DATA123"
+
+    @patch("comfyui.queue_prompt")
+    @patch("comfyui.WebSocket")
+    def test_detects_execution_error(self, mock_ws_class, mock_queue):
+        mock_queue.return_value = {"prompt_id": "pid"}
+        ws = MagicMock()
+        ws_class_iter = iter([
+            json.dumps({"type": "executing", "data": {"node": "2", "prompt_id": "pid"}}),
+            json.dumps({
+                "type": "execution_error",
+                "data": {"node_type": "KSampler", "prompt_id": "pid"},
+            }),
+            json.dumps({"type": "executing", "data": {"node": None, "prompt_id": "pid"}}),
+        ])
+        ws.recv.side_effect = lambda: next(ws_class_iter)
+        mock_ws_class.return_value = ws
+
+        import os
+        original_workflow = comfyui.BASE_WORKFLOW
+        try:
+            wf_path = os.path.join(os.path.dirname(comfyui.__file__), "workflows", "minimax_h3.json")
+            with open(wf_path, "r") as f:
+                comfyui.BASE_WORKFLOW = json.load(f)
+            result = comfyui.get_video("a video")
+        finally:
+            comfyui.BASE_WORKFLOW = original_workflow
+
+        assert "__error__" in result
+        assert "KSampler" in result["__error__"]

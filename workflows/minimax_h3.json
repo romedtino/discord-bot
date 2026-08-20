@@ -21,7 +21,7 @@
   },
   "619": {
     "inputs": {
-      "seed": 799204920168474
+      "seed": -1
     },
     "class_type": "Seed (rgthree)",
     "_meta": {
@@ -60,9 +60,33 @@
       "title": "Create Video"
     }
   },
+  "634": {
+    "inputs": {
+      "server_url": "http://192.168.1.33:11435",
+      "model": "Gemma-4-2B-abl",
+      "system_prompt": "You are an expert video prompt engineer. Your job is to convert any visual reference, frame, or scene description into a structured full-reference prompt following this guide. When a user puts text in quotes, use them directly without changing the words.\n\nWrite all six sections in English. Preserve the original language for dialogue/lyrics and for text visibly present in the scene.\n\nA complete output MUST contain the following six sections in exact order:\n\n1. subject_definitions\nDefine all referenced content and assign specific labels on separate lines:\n- <Subject N>: Visible content (people, animals, objects, clothing, environments, visual styles).\n- <Picture N>: Standalone reference image used as a concrete frame or composition anchor.\n- <Video N>: Reference video for temporal structure, editing, or continuation.\n- <Audio N>: Referenced or copied audio assets, voice timbres, or soundtracks.\nExample: <Subject 1> is the man in <Picture 1>, dressed in a dark suit with a pink shirt.\n\n2. summary\nA single concise paragraph summarizing the task and shot flow. Begin with a bracketed task type prefix, such as: [keyframe completion] or [reference generation].\nUse defined labels (<Subject N>, <Picture N>, etc.) to describe the scene.\n\n3. retention_analysis\nRecord how each defined label is preserved using strict relationship markers:\n- Visual Markers: fully_preserved, partially_preserved, attribute_transfer, or weak_reference.\n- Audio Markers: fully_copy, partially_copy, reference, or weak_reference.\nFormat: <Subject 1> (appears in [Shot 1]): fully_preserved - Description of preservation.\n\n4. detailed_description\nThe main body describing visuals, actions, camera movement, and audio shot by shot in target-video playback order.\n- Format shots as [Shot 1] (opening) or [Shot 2] At MM:SS.mmm, ... for subsequent cuts.\n- Insert relevant reference labels (<Subject 1>, <Picture 1>) where they apply.\n- Enclose speaker dialogues inside <d>...</d> tags, prefixed by the speaker tag (S1), (S2), etc.\n- Explicitly detail subject appearance, camera framing/movement, state changes, and audio sync points.\n\n5. overall_soundscape\nA brief section summarizing ambient background sounds, environmental noises, and physical audio elements in the scene.\n\n6. non_diegetic_music\nDescribe background music or score audible only to the audience (or state \"None\" if none exists).\n\n---\n\nOUTPUT TEMPLATE:\n\nsubject_definitions:\n<Subject 1> ...\n<Picture 1> ...\n\nsummary:\n[task_type] ...\n\nretention_analysis:\n<Subject 1> (appears in [Shot 1]): fully_preserved - ...\n<Picture 1> ([Shot 1] first frame): fully_preserved - ...\n\ndetailed_description:\n[Shot 1] ...\n\noverall_soundscape:\n...\n\nnon_diegetic_music:\n...",
+      "prompt": "PROMPT HERE",
+      "stream": false,
+      "max_tokens": 0,
+      "temperature": 0.8,
+      "seed": 22,
+      "json_mode": false,
+      "unload_after_generate": true,
+      "text_postprocess": "fix_mojibake",
+      "audio_path": "",
+      "video_path": "",
+      "api_key": "",
+      "json_schema_hint": "",
+      "stop_custom": ""
+    },
+    "class_type": "LlamaCppRouterClient",
+    "_meta": {
+      "title": "🦙 Llama.cpp Router Client (Chat + Vision + Audio + Video + Stream)"
+    }
+  },
   "620:11": {
     "inputs": {
-      "vae_name": "minimax_h3/minimax_h3_video_vae_fp16.safetensors"
+      "vae_name": "minimax_h3_video_vae_int8_convrot.safetensors"
     },
     "class_type": "VAELoader",
     "_meta": {
@@ -71,7 +95,7 @@
   },
   "620:24": {
     "inputs": {
-      "vae_name": "minimax_h3/minimax_h3_audio_vae_fp32.safetensors"
+      "vae_name": "minimax_h3/minimax_h3_audio_vae_bf16.safetensors"
     },
     "class_type": "VAELoader",
     "_meta": {
@@ -109,7 +133,7 @@
   "620:16": {
     "inputs": {
       "model": [
-        "620:600",
+        "620:636",
         0
       ],
       "conditioning": [
@@ -152,7 +176,10 @@
   },
   "620:104": {
     "inputs": {
-      "prompt": "PROMPT HERE",
+      "prompt": [
+        "634",
+        0
+      ],
       "width": [
         "618",
         0
@@ -166,7 +193,7 @@
         1
       ],
       "clip": [
-        "620:13",
+        "620:632",
         0
       ],
       "vae": [
@@ -205,30 +232,6 @@
       "title": "Patch Sage Attention KJ"
     }
   },
-  "620:17": {
-    "inputs": {
-      "sampler_name": "sa_solver"
-    },
-    "class_type": "KSamplerSelect",
-    "_meta": {
-      "title": "KSamplerSelect"
-    }
-  },
-  "620:9": {
-    "inputs": {
-      "scheduler": "beta",
-      "steps": 8,
-      "denoise": 1,
-      "model": [
-        "620:600",
-        0
-      ]
-    },
-    "class_type": "BasicScheduler",
-    "_meta": {
-      "title": "BasicScheduler"
-    }
-  },
   "620:107": {
     "inputs": {
       "expression": "max(5, round(a * 24)) + (5 - (max(5, round(a * 24)) % 17)) % 17",
@@ -240,22 +243,6 @@
     "class_type": "ComfyMathExpression",
     "_meta": {
       "title": "Math Expression"
-    }
-  },
-  "620:600": {
-    "inputs": {
-      "reuse_threshold": 0.3,
-      "start_percent": 0.2,
-      "end_percent": 0.9,
-      "verbose": false,
-      "model": [
-        "620:124",
-        0
-      ]
-    },
-    "class_type": "EasyCache",
-    "_meta": {
-      "title": "EasyCache"
     }
   },
   "620:10": {
@@ -274,43 +261,79 @@
       "title": "VAE Decode"
     }
   },
-  "620:123": {
+  "620:632": {
     "inputs": {
-      "unet_name": "minimax_h3/minimax_h3_fl2va_pruned_int8_convrot.safetensors",
-      "weight_dtype": "default",
-      "model_type": "ltx2",
-      "on_the_fly_quantization": false,
-      "enable_convrot": true,
-      "lora_mode": "None"
+      "clip_name": "minimax_h3/qwen3vl_4b_int4_convrot.safetensors",
+      "type": "auto",
+      "projection": "minimax_h3/mmh3-4b-ClipProj-v3.1-mlp.safetensors",
+      "device": "cuda:0",
+      "mode": "resident"
     },
-    "class_type": "OTUNetLoaderW8A8",
+    "class_type": "ClipProjLoader",
     "_meta": {
-      "title": "Load Diffusion Model INT8 (W8A8)"
+      "title": "ClipProj Loader (all-in-one)"
     }
   },
-  "620:13": {
+  "620:633": {
     "inputs": {
-      "clip_name": "minimax_h3/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
-      "type": "minimax",
-      "device": "default"
+      "unet_name": "minimax_h3/minimax_h3_ref2va_hybrid_b20-49_pruned_w4a8_mixed.safetensors",
+      "weight_dtype": "default"
     },
-    "class_type": "CLIPLoader",
+    "class_type": "UNETLoader",
     "_meta": {
-      "title": "Load CLIP"
+      "title": "Load Diffusion Model"
     }
   },
   "620:607": {
     "inputs": {
       "lora_name": "minimax_h3/minimax_h3_fl2v_lightx2v_turbo_8step_v1.0_resized_avg_rank_24_bf16.safetensors",
-      "strength_model": 1,
+      "strength_model": 0.7,
       "model": [
-        "620:123",
+        "620:633",
         0
       ]
     },
     "class_type": "LoraLoaderBypassModelOnly",
     "_meta": {
       "title": "Load LoRA (Bypass, Model Only) (for debugging)"
+    }
+  },
+  "620:17": {
+    "inputs": {
+      "sampler_name": "euler"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "KSamplerSelect"
+    }
+  },
+  "620:9": {
+    "inputs": {
+      "scheduler": "simple",
+      "steps": 8,
+      "denoise": 1,
+      "model": [
+        "620:636",
+        0
+      ]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "BasicScheduler"
+    }
+  },
+  "620:636": {
+    "inputs": {
+      "shift_video": 12,
+      "shift_audio": 3,
+      "model": [
+        "620:124",
+        0
+      ]
+    },
+    "class_type": "MiniMaxH3SigmaShift",
+    "_meta": {
+      "title": "ModelSamplingMiniMaxH3"
     }
   }
 }
