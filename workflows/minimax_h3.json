@@ -11,7 +11,7 @@
   "618": {
     "inputs": {
       "aspect_ratio": "16:9 (Widescreen)",
-      "megapixels": 0.4,
+      "megapixels": 0.5,
       "multiple": 8
     },
     "class_type": "ResolutionSelector",
@@ -86,7 +86,7 @@
   },
   "620:11": {
     "inputs": {
-      "vae_name": "minimax_h3_video_vae_int8_convrot.safetensors"
+      "vae_name": "minimax_h3/minimax_h3_video_vae_int8_convrot.safetensors"
     },
     "class_type": "VAELoader",
     "_meta": {
@@ -133,7 +133,7 @@
   "620:16": {
     "inputs": {
       "model": [
-        "620:636",
+        "620:639",
         0
       ],
       "conditioning": [
@@ -218,20 +218,6 @@
       "title": "Float (duration)"
     }
   },
-  "620:124": {
-    "inputs": {
-      "sage_attention": "auto",
-      "allow_compile": true,
-      "model": [
-        "620:607",
-        0
-      ]
-    },
-    "class_type": "PathchSageAttentionKJ",
-    "_meta": {
-      "title": "Patch Sage Attention KJ"
-    }
-  },
   "620:107": {
     "inputs": {
       "expression": "max(5, round(a * 24)) + (5 - (max(5, round(a * 24)) % 17)) % 17",
@@ -261,19 +247,6 @@
       "title": "VAE Decode"
     }
   },
-  "620:632": {
-    "inputs": {
-      "clip_name": "minimax_h3/qwen3vl_4b_int4_convrot.safetensors",
-      "type": "auto",
-      "projection": "minimax_h3/mmh3-4b-ClipProj-v3.1-mlp.safetensors",
-      "device": "cuda:0",
-      "mode": "resident"
-    },
-    "class_type": "ClipProjLoader",
-    "_meta": {
-      "title": "ClipProj Loader (all-in-one)"
-    }
-  },
   "620:633": {
     "inputs": {
       "unet_name": "minimax_h3/minimax_h3_ref2va_hybrid_b20-49_pruned_w4a8_mixed.safetensors",
@@ -282,20 +255,6 @@
     "class_type": "UNETLoader",
     "_meta": {
       "title": "Load Diffusion Model"
-    }
-  },
-  "620:607": {
-    "inputs": {
-      "lora_name": "minimax_h3/minimax_h3_fl2v_lightx2v_turbo_8step_v1.0_resized_avg_rank_24_bf16.safetensors",
-      "strength_model": 0.7,
-      "model": [
-        "620:633",
-        0
-      ]
-    },
-    "class_type": "LoraLoaderBypassModelOnly",
-    "_meta": {
-      "title": "Load LoRA (Bypass, Model Only) (for debugging)"
     }
   },
   "620:17": {
@@ -313,7 +272,7 @@
       "steps": 8,
       "denoise": 1,
       "model": [
-        "620:636",
+        "620:639",
         0
       ]
     },
@@ -322,18 +281,76 @@
       "title": "BasicScheduler"
     }
   },
+  "620:632": {
+    "inputs": {
+      "clip_name": "minimax_h3/qwen3vl_4b_int4_convrot.safetensors",
+      "type": "auto",
+      "projection": "minimax_h3/mmh3-4b-ClipProj-celeb-mlp.safetensors",
+      "device": "cuda:0",
+      "mode": "resident"
+    },
+    "class_type": "ClipProjLoader",
+    "_meta": {
+      "title": "ClipProj Loader (all-in-one)"
+    }
+  },
   "620:636": {
     "inputs": {
       "shift_video": 12,
       "shift_audio": 3,
       "model": [
-        "620:124",
+        "620:640",
         0
       ]
     },
     "class_type": "MiniMaxH3SigmaShift",
     "_meta": {
       "title": "ModelSamplingMiniMaxH3"
+    }
+  },
+  "620:639": {
+    "inputs": {
+      "sparsity_ratio": 0.9,
+      "block_size": "64",
+      "min_seq_len": 8192,
+      "dense_last_steps": 0,
+      "protect_audio": true,
+      "enabled": true,
+      "model": [
+        "620:636",
+        0
+      ]
+    },
+    "class_type": "H3SLAAttention",
+    "_meta": {
+      "title": "H3 SLA Attention"
+    }
+  },
+  "620:640": {
+    "inputs": {
+      "attention": "pytorch attention",
+      "model": [
+        "620:607",
+        0
+      ]
+    },
+    "class_type": "ModelAttentionBackend",
+    "_meta": {
+      "title": "ModelAttentionBackend"
+    }
+  },
+  "620:607": {
+    "inputs": {
+      "lora_name": "minimax_h3/minimax_h3_fl2v_lightx2v_turbo_8step_v1.0_resized_avg_rank_24_bf16.safetensors",
+      "strength_model": 1,
+      "model": [
+        "620:633",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderBypassModelOnly",
+    "_meta": {
+      "title": "Load LoRA (Bypass, Model Only) (for debugging)"
     }
   }
 }

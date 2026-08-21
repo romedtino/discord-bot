@@ -77,18 +77,14 @@ async def genvid(
     prompt: str,
 ):
     await interaction.response.defer(thinking=True)
-    original_workflow = comfyui.BASE_WORKFLOW
     try:
         video_workflow = _load_workflow("minimax_h3")
-        comfyui.BASE_WORKFLOW = video_workflow
 
         loop = asyncio.get_running_loop()
-        video_data = await loop.run_in_executor(None, comfyui.generate_video, prompt)
+        video_data = await loop.run_in_executor(None, comfyui._generate_video, video_workflow, prompt)
     except Exception as e:
         await interaction.followup.send(f"Error communicating with ComfyUI: {e}")
         return
-    finally:
-        comfyui.BASE_WORKFLOW = original_workflow
 
     if not video_data:
         await interaction.followup.send(
@@ -98,7 +94,7 @@ async def genvid(
     file = discord.File(io.BytesIO(video_data), filename="video.mp4")
     await interaction.followup.send(
         content=f"{interaction.user.mention} requested: {prompt}",
-        file=file
+        file=file,
     )
 
 app.tree.add_command(genvid)

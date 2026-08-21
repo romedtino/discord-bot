@@ -44,10 +44,13 @@ def _find_positive_prompt_node(workflow):
     if prompt_node is not None:
         return prompt_node, "value"
     for node_id, node_data in workflow.items():
-        if (node_data.get("class_type") == "CLIPTextEncode"
-                and isinstance(node_data.get("inputs", {}).get("text"), str)
-                and node_data.get("inputs", {}).get("text")):
+        inputs = node_data.get("inputs", {})
+        # Check for "text" key (CLIPTextEncode and similar)
+        if isinstance(inputs.get("text"), str) and inputs["text"]:
             return node_id, "text"
+        # Check for "prompt" key (MiniMaxH3ImageToVideo and similar)
+        if isinstance(inputs.get("prompt"), str) and inputs["prompt"]:
+            return node_id, "prompt"
     return None, None
 
 
@@ -172,14 +175,55 @@ def _get_output(workflow, class_type):
     return None
 
 
-def get_video(user_prompt):
+def _parse_video_binary(data):
+    """Parse the SaveVideoWebsocket binary protocol.
+
+    ComfyUI wraps all binary messages with a 4-byte big-endian event type.
+    The SaveVideoWebsocket node sends VIDF frames as event type 100.
+    Wire format: [event_type_BE uint32][VIDF magic][format_len_LE][format_str][video_data]
+
+    Returns (video_bytes, format_string) or raises ValueError on bad format.
+    """
+    import struct as _struct
+
+    if len(data) < 13:
+        raise ValueError(f"Video data too short ({len(data)} bytes), expected at least 13")
+
+    # Bytes 0-3: ComfyUI event type (big-endian uint32, 100 for video)
+    event_type = _struct.unpack(">I", data[0:4])[0]
+
+    # Bytes 4-7: Magic 'VIDF'
+    magic = data[4:8]
+    if magic != b'VIDF':
+        raise ValueError(
+            f"Expected VIDF magic bytes at offset 4, got {magic!r} "
+            f"(event_type={event_type}, first_16_bytes={data[:16].hex()})"
+        )
+
+    # Bytes 8-11: Format length (little-endian uint32)
+    fmt_len = _struct.unpack('<I', data[8:12])[0]
+
+    # Bytes 12..12+fmt_len: Format string (e.g. 'mp4')
+    format_str = data[12:12 + fmt_len].decode('utf-8')
+
+    # Rest: raw video data
+    video_bytes = data[12 + fmt_len:]
+    if not video_bytes:
+        raise ValueError("Video payload is empty")
+
+    return video_bytes, format_str
+
+
+def get_video(workflow_template, user_prompt):
     """Run a video generation workflow (minimax_h3) and return raw mp4 bytes."""
     client_id = str(uuid.uuid4())
-    workflow = modify_workflow(BASE_WORKFLOW, user_prompt)
+    workflow = modify_workflow(workflow_template, user_prompt)
     output_node = _get_output(workflow, "SaveVideoWebsocket")
+    logger.info("Video generation: output_node=%s", output_node)
 
     result = queue_prompt(workflow, client_id)
     prompt_id = result["prompt_id"]
+    logger.info("Video generation: queued prompt_id=%s", prompt_id)
 
     ws = WebSocket()
     ws.connect(f"ws://{COMFYUI_HOST}/ws?clientId={client_id}")
@@ -189,32 +233,93 @@ def get_video(user_prompt):
     current_node = ""
     last_node = ""
     error_nodes = []
+    message_count = 0
+    all_executing_nodes = set()
+    all_executed_nodes = set()
+    executed_nodes = set()  # Track nodes that completed execution
 
     while True:
         try:
             out = ws.recv()
-        except Exception:
+        except Exception as e:
+            logger.warning("Video generation: websocket exception: %s", e)
+            logger.info("Video generation: collected nodes - executing=%s, executed=%s",
+                       all_executing_nodes, all_executed_nodes)
             ws.close()
             return {"__error__": ["websocket_timeout"]}
         if isinstance(out, str):
             message = json.loads(out)
             msg_type = message.get("type")
+            data = message.get("data", {})
+            msg_prompt_id = data.get("prompt_id")
+
             if msg_type == "executing":
-                data = message["data"]
-                if data.get("node") is None:
+                node = data.get("node")
+                all_executing_nodes.add(str(node) if node else "<completion>")
+                logger.info("Video generation: executing message node=%s prompt_id=%s (our=%s)",
+                           node, msg_prompt_id, prompt_id)
+                if node is None:
+                    logger.info("Video generation: execution complete (node=None), messages=%d, video_data=%s",
+                               message_count, bool(video_data))
                     break
-                if data.get("prompt_id") == prompt_id:
+                if msg_prompt_id == prompt_id:
                     current_node = data["node"]
                     last_node = current_node
+                    logger.info("Video generation: MATCHED executing node %s", current_node)
             elif msg_type == "execution_error":
-                data = message["data"]
-                if data.get("prompt_id") == prompt_id:
+                all_executing_nodes.add("<error>")
+                if msg_prompt_id == prompt_id:
                     error_nodes.append(data.get("node_type"))
+                    logger.error("Video generation: execution_error from node_type=%s", data.get("node_type"))
+            elif msg_type == "executed":
+                executed_node = data.get("node")
+                all_executed_nodes.add(str(executed_node) if executed_node else "<unknown>")
+                output_keys = list(data.get("output", {}).keys()) if isinstance(data.get("output"), dict) else "N/A"
+                logger.info("Video generation: executed node=%s prompt_id=%s (our=%s) output=%s",
+                           executed_node, msg_prompt_id, prompt_id, output_keys)
+                # Track completed nodes for binary data matching
+                if msg_prompt_id == prompt_id and executed_node:
+                    executed_nodes.add(executed_node)
+            elif msg_type == "status":
+                logger.debug("Video generation: status message %s", data.get("status", {}))
         else:
-            if output_node and last_node == output_node:
-                video_data = out[8:]
+            message_count += 1
+            first_bytes = out[:20].hex() if len(out) >= 20 else out.hex()
+            logger.info("Video generation: binary #%d last_node=%s output_node=%s len=%d first=%s",
+                       message_count, last_node, output_node, len(out), first_bytes)
+            if output_node:
+                # Try strict match with last_node first
+                if last_node == output_node:
+                    try:
+                        video_data, fmt = _parse_video_binary(out)
+                        logger.info("Video generation: parsed video from last_node match (%d bytes, format=%s)",
+                                   len(video_data), fmt)
+                    except ValueError as e:
+                        logger.warning("Failed to parse SaveVideoWebsocket data (last_node match): %s", e)
+                # Fallback: check if output_node completed execution
+                # SaveVideoWebsocket may not send an "executing" message, so last_node might be stale
+                elif output_node in executed_nodes:
+                    try:
+                        video_data, fmt = _parse_video_binary(out)
+                        logger.info("Video generation: parsed video from executed_nodes match (%d bytes, format=%s)",
+                                   len(video_data), fmt)
+                    except ValueError as e:
+                        logger.warning("Failed to parse SaveVideoWebsocket data (executed_nodes match): %s", e)
+                else:
+                    # Last resort: try parsing any binary from our prompt
+                    # This handles cases where SaveVideoWebsocket doesn't send "executing"/"executed" messages
+                    logger.info("Video generation: binary from unknown node, attempting parse as fallback")
+                    try:
+                        video_data, fmt = _parse_video_binary(out)
+                        logger.info("Video generation: parsed video from fallback (%d bytes, format=%s)",
+                                   len(video_data), fmt)
+                    except ValueError:
+                        logger.debug("Not a SaveVideoWebsocket message (skipped)")
 
     ws.close()
+    logger.info("Video generation: final state - error_nodes=%s, video_data=%d bytes, all_executing=%s, all_executed=%s",
+               error_nodes, len(video_data) if video_data else 0,
+               sorted(all_executing_nodes), sorted(all_executed_nodes))
     if error_nodes:
         return {"__error__": error_nodes}
     if not video_data:
@@ -222,9 +327,22 @@ def get_video(user_prompt):
     return {output_node: [video_data]}
 
 
-def generate_video(user_prompt):
+def _generate_video(workflow_template, user_prompt):
     """Run a full video generation and return raw mp4 bytes."""
-    result = get_video(user_prompt)
+    result = get_video(workflow_template, user_prompt)
+    if "__error__" in result:
+        raise RuntimeError(f"ComfyUI video generation failed: {result['__error__']}")
+    if not result:
+        return None
+    video_list = next(iter(result.values()))
+    if not video_list:
+        return None
+    return video_list[0]
+
+
+def generate_video(user_prompt):
+    """Run a full video generation using BASE_WORKFLOW and return raw mp4 bytes."""
+    result = _generate_video(BASE_WORKFLOW, user_prompt)
     if "__error__" in result:
         raise RuntimeError(f"ComfyUI video generation failed: {result['__error__']}")
     if not result:
