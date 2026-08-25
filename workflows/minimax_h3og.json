@@ -65,7 +65,7 @@
       "server_url": "http://192.168.1.33:11435",
       "model": "Gemma-4-2B-abl",
       "system_prompt": "You are an expert video prompt engineer. Your job is to convert any visual reference, frame, or scene description into a structured full-reference prompt following this guide. When a user puts text in quotes, use them directly without changing the words.\n\nWrite all six sections in English. Preserve the original language for dialogue/lyrics and for text visibly present in the scene.\n\nA complete output MUST contain the following six sections in exact order:\n\n1. subject_definitions\nDefine all referenced content and assign specific labels on separate lines:\n- <Subject N>: Visible content (people, animals, objects, clothing, environments, visual styles).\n- <Picture N>: Standalone reference image used as a concrete frame or composition anchor.\n- <Video N>: Reference video for temporal structure, editing, or continuation.\n- <Audio N>: Referenced or copied audio assets, voice timbres, or soundtracks.\nExample: <Subject 1> is the man in <Picture 1>, dressed in a dark suit with a pink shirt.\n\n2. summary\nA single concise paragraph summarizing the task and shot flow. Begin with a bracketed task type prefix, such as: [keyframe completion] or [reference generation].\nUse defined labels (<Subject N>, <Picture N>, etc.) to describe the scene.\n\n3. retention_analysis\nRecord how each defined label is preserved using strict relationship markers:\n- Visual Markers: fully_preserved, partially_preserved, attribute_transfer, or weak_reference.\n- Audio Markers: fully_copy, partially_copy, reference, or weak_reference.\nFormat: <Subject 1> (appears in [Shot 1]): fully_preserved - Description of preservation.\n\n4. detailed_description\nThe main body describing visuals, actions, camera movement, and audio shot by shot in target-video playback order.\n- Format shots as [Shot 1] (opening) or [Shot 2] At MM:SS.mmm, ... for subsequent cuts.\n- Insert relevant reference labels (<Subject 1>, <Picture 1>) where they apply.\n- Enclose speaker dialogues inside <d>...</d> tags, prefixed by the speaker tag (S1), (S2), etc.\n- Explicitly detail subject appearance, camera framing/movement, state changes, and audio sync points.\n\n5. overall_soundscape\nA brief section summarizing ambient background sounds, environmental noises, and physical audio elements in the scene.\n\n6. non_diegetic_music\nDescribe background music or score audible only to the audience (or state \"None\" if none exists).\n\n---\n\nOUTPUT TEMPLATE:\n\nsubject_definitions:\n<Subject 1> ...\n<Picture 1> ...\n\nsummary:\n[task_type] ...\n\nretention_analysis:\n<Subject 1> (appears in [Shot 1]): fully_preserved - ...\n<Picture 1> ([Shot 1] first frame): fully_preserved - ...\n\ndetailed_description:\n[Shot 1] ...\n\noverall_soundscape:\n...\n\nnon_diegetic_music:\n...",
-      "prompt": "doors open and you can see a man, his back facing us, looking at his laptop. On screen you see Shrek dancing, he notices the door opening, frantically shuts the laptop and starts laughing nervously\n",
+      "prompt": "PROMPT HERE",
       "stream": false,
       "max_tokens": 0,
       "temperature": 0.8,
@@ -266,6 +266,34 @@
       "title": "KSamplerSelect"
     }
   },
+  "620:9": {
+    "inputs": {
+      "scheduler": "simple",
+      "steps": 8,
+      "denoise": 1,
+      "model": [
+        "620:639",
+        0
+      ]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "BasicScheduler"
+    }
+  },
+  "620:632": {
+    "inputs": {
+      "clip_name": "minimax_h3/qwen3vl_4b_int4_convrot.safetensors",
+      "type": "auto",
+      "projection": "minimax_h3/mmh3-4b-ClipProj-celeb-mlp.safetensors",
+      "device": "cuda:0",
+      "mode": "resident"
+    },
+    "class_type": "ClipProjLoader",
+    "_meta": {
+      "title": "ClipProj Loader (all-in-one)"
+    }
+  },
   "620:636": {
     "inputs": {
       "shift_video": 12,
@@ -298,6 +326,19 @@
       "title": "H3 SLA Attention"
     }
   },
+  "620:640": {
+    "inputs": {
+      "attention": "pytorch attention",
+      "model": [
+        "620:607",
+        0
+      ]
+    },
+    "class_type": "ModelAttentionBackend",
+    "_meta": {
+      "title": "ModelAttentionBackend"
+    }
+  },
   "620:607": {
     "inputs": {
       "lora_name": "minimax_h3/minimax_h3_fl2v_lightx2v_turbo_8step_v1.0_resized_avg_rank_24_bf16.safetensors",
@@ -310,47 +351,6 @@
     "class_type": "LoraLoaderBypassModelOnly",
     "_meta": {
       "title": "Load LoRA (Bypass, Model Only) (for debugging)"
-    }
-  },
-  "620:9": {
-    "inputs": {
-      "scheduler": "linear_quadratic",
-      "steps": 8,
-      "denoise": 1,
-      "model": [
-        "620:639",
-        0
-      ]
-    },
-    "class_type": "BasicScheduler",
-    "_meta": {
-      "title": "BasicScheduler"
-    }
-  },
-  "620:640": {
-    "inputs": {
-      "attention": "comfy kitchen attention",
-      "model": [
-        "620:607",
-        0
-      ]
-    },
-    "class_type": "ModelAttentionBackend",
-    "_meta": {
-      "title": "ModelAttentionBackend"
-    }
-  },
-  "620:632": {
-    "inputs": {
-      "clip_name": "minimax_h3/qwen3vl_8b_int8.safetensors",
-      "type": "auto",
-      "projection": "minimax_h3/mmh3-8b-ClipProj-celeb-mlp.safetensors",
-      "device": "cpu",
-      "mode": "streaming"
-    },
-    "class_type": "ClipProjLoader",
-    "_meta": {
-      "title": "ClipProj Loader (all-in-one)"
     }
   }
 }
