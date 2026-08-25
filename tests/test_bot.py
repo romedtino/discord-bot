@@ -39,6 +39,8 @@ def test_genvid_has_prompt_parameter():
     import bot
     cmd =(bot.app.tree.get_command("genvid"))
     params = cmd.parameters
-    assert len(params) == 1
+    assert len(params) == 2
     assert params[0].name == "prompt"
     assert params[0].required is True
+    assert params[1].name == "duration"
+    assert params[1].required is False

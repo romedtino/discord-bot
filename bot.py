@@ -70,18 +70,24 @@ def _load_workflow(workflow_name):
 
 
 @app_commands.command(name="genvid", description="Generate a video given a prompt.")
-@app_commands.describe(prompt="Text description of the video to generate.")
+@app_commands.describe(prompt="Text description of the video to generate.", duration="Video duration in seconds (1-15).")
 @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 async def genvid(
     interaction: discord.Interaction,
     prompt: str,
+    duration: int = 5,
 ):
     await interaction.response.defer(thinking=True)
+    if duration < 1 or duration > 10:
+        await interaction.followup.send(
+            "Duration must be between 1 and 10 seconds."
+        )
+        return
     try:
         video_workflow = _load_workflow("minimax_h3")
 
         loop = asyncio.get_running_loop()
-        video_data = await loop.run_in_executor(None, comfyui._generate_video, video_workflow, prompt)
+        video_data = await loop.run_in_executor(None, comfyui._generate_video, video_workflow, prompt, duration)
     except Exception as e:
         await interaction.followup.send(f"Error communicating with ComfyUI: {e}")
         return
@@ -93,7 +99,10 @@ async def genvid(
         return
     file = discord.File(io.BytesIO(video_data), filename="video.mp4")
     await interaction.followup.send(
-        content=f"{interaction.user.mention} requested: {prompt}",
+        content=(
+            f"{interaction.user.mention} "
+            f"requested({duration}s): {prompt}"
+        ),
         file=file,
     )
 

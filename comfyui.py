@@ -80,7 +80,21 @@ def _find_steps_node(workflow):
     return None, None
 
 
-def modify_workflow(workflow, user_prompt, steps=None):
+def _find_duration_node(workflow):
+    """Find the PrimitiveFloat node used for video duration (typically id '617')."""
+    # Try known duration node IDs first
+    for node_id in ("617", "620:111"):
+        node = workflow.get(node_id, {})
+        if node.get("class_type") == "PrimitiveFloat" and "value" in node.get("inputs", {}):
+            return node_id, "value"
+    # Fallback: search all PrimitiveFloat nodes
+    for node_id, node_data in workflow.items():
+        if node_data.get("class_type") == "PrimitiveFloat" and "value" in node_data.get("inputs", {}):
+            return node_id, "value"
+    return None, None
+
+
+def modify_workflow(workflow, user_prompt, steps=None, duration=None):
     modified = json.loads(json.dumps(workflow))
     prompt_node, prompt_key = _find_positive_prompt_node(modified)
     if prompt_node is not None:
@@ -91,6 +105,9 @@ def modify_workflow(workflow, user_prompt, steps=None):
     steps_node, steps_key = _find_steps_node(modified)
     if steps_node is not None and steps is not None and steps_key is not None:
         modified[steps_node]["inputs"][steps_key] = steps
+    duration_node, duration_key = _find_duration_node(modified)
+    if duration_node is not None and duration is not None and duration_key is not None:
+        modified[duration_node]["inputs"][duration_key] = duration
     return modified
 
 
@@ -214,10 +231,10 @@ def _parse_video_binary(data):
     return video_bytes, format_str
 
 
-def get_video(workflow_template, user_prompt):
+def get_video(workflow_template, user_prompt, duration=None):
     """Run a video generation workflow (minimax_h3) and return raw mp4 bytes."""
     client_id = str(uuid.uuid4())
-    workflow = modify_workflow(workflow_template, user_prompt)
+    workflow = modify_workflow(workflow_template, user_prompt, duration=duration)
     output_node = _get_output(workflow, "SaveVideoWebsocket")
     logger.info("Video generation: output_node=%s", output_node)
 
@@ -327,9 +344,9 @@ def get_video(workflow_template, user_prompt):
     return {output_node: [video_data]}
 
 
-def _generate_video(workflow_template, user_prompt):
+def _generate_video(workflow_template, user_prompt, duration=None):
     """Run a full video generation and return raw mp4 bytes."""
-    result = get_video(workflow_template, user_prompt)
+    result = get_video(workflow_template, user_prompt, duration=duration)
     if "__error__" in result:
         raise RuntimeError(f"ComfyUI video generation failed: {result['__error__']}")
     if not result:
