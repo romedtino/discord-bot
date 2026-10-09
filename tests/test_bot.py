@@ -44,3 +44,28 @@ def test_genvid_has_prompt_parameter():
     assert params[0].required is True
     assert params[1].name == "duration"
     assert params[1].required is False
+
+
+def test_genspeech_command_registered():
+    import bot
+    cmd = bot.app.tree.get_command("genspeech")
+    assert cmd is not None
+
+
+def test_genspeech_command_has_input_and_voice_parameters():
+    import bot
+    cmd = bot.app.tree.get_command("genspeech")
+    params = cmd.parameters
+    assert len(params) == 2
+    assert params[0].name == "input"
+    assert params[0].required is True
+    assert params[1].name == "voice"
+    assert params[1].required is False
+
+
+def test_genspeech_voice_choices():
+    import bot
+    cmd = bot.app.tree.get_command("genspeech")
+    params = cmd.parameters
+    voice_param = params[1]
+    assert [choice.value for choice in voice_param.choices] == ["af_heart", "af_nicole"]

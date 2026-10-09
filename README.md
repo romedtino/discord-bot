@@ -41,6 +41,22 @@ Use `/genimg` in any channel the bot has access to:
 
 The bot will respond with the generated image(s).
 
+Use `/genspeech` to generate speech with Kokoro TTS:
+
+```
+/genspeech input: hello world voice: af_heart
+```
+
+`voice` is a choice between `af_heart` (default) and `af_nicole`. The bot
+responds with the generated `speech.mp3` file.
+
+The Kokoro TTS server is expected at `192.168.1.59:8880`. To use a different
+host:
+
+```bash
+export KOKORO_HOST="your-host:8880"
+```
+
 ### ComfyUI standalone
 
 Generate images from the command line without the Discord bot:
@@ -67,6 +83,7 @@ uv run pytest tests/ -v
 
 ```
 comfyui.py        - ComfyUI API logic (modify workflow, queue prompt, get images)
+kokoro.py         - Kokoro TTS API logic (OpenAI-compatible /v1/audio/speech)
 bot.py            - Discord bot with /genimg command
 main.py           - Entry point (runs the bot)
 workflows/t2i.json - ComfyUI workflow (text-to-image with SaveImageWebsocket)

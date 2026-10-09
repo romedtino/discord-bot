@@ -4,6 +4,7 @@ import json
 import logging
 import os
 from pathlib import Path
+from typing import Literal
 
 import discord
 from discord.ext import commands
@@ -11,6 +12,7 @@ from discord import app_commands
 from PIL import Image
 
 import comfyui
+import kokoro
 
 INTENTS = discord.Intents.default()
 INTENTS.message_content = True
@@ -107,6 +109,38 @@ async def genvid(
     )
 
 app.tree.add_command(genvid)
+
+
+@app_commands.command(name="genspeech", description="Generate speech from text using Kokoro TTS.")
+@app_commands.describe(input="Text to convert to speech.", voice="Voice to speak with.")
+@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+async def genspeech(
+    interaction: discord.Interaction,
+    input: str,
+    voice: Literal["af_heart", "af_nicole"] = kokoro.DEFAULT_VOICE,
+):
+    await interaction.response.defer(thinking=True)
+    try:
+        loop = asyncio.get_running_loop()
+        audio_data = await loop.run_in_executor(None, kokoro.generate_speech, input, voice)
+    except Exception as e:
+        await interaction.followup.send(f"Error communicating with Kokoro TTS: {e}")
+        return
+    if not audio_data:
+        await interaction.followup.send(
+            "No speech was generated. The generation may have failed."
+        )
+        return
+    file = discord.File(io.BytesIO(audio_data), filename="speech.mp3")
+    await interaction.followup.send(
+        content=(
+            f"{interaction.user.mention} "
+            f"requested({voice}): {input}"
+        ),
+        file=file,
+    )
+
+app.tree.add_command(genspeech)
 
 
 @app.event
