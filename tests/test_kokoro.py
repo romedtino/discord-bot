@@ -73,6 +73,66 @@ class TestGenerateSpeech:
         assert "500" in str(exc_info.value)
 
 
+class TestListVoices:
+    """Tests for the list_voices function."""
+
+    @patch("kokoro.request.urlopen")
+    def test_gets_voices_endpoint(self, mock_urlopen):
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps(
+            {"voices": [], "default_voice": "af_heart"}
+        ).encode()
+        mock_urlopen.return_value = mock_response
+
+        kokoro.list_voices()
+
+        req = mock_urlopen.call_args[0][0]
+        assert f"http://{kokoro.KOKORO_HOST}/v1/audio/voices" == req.full_url
+
+    @patch("kokoro.request.urlopen")
+    def test_extracts_ids_and_default(self, mock_urlopen):
+        mock_response = MagicMock()
+        payload = {
+            "voices": [
+                {"id": "af_heart", "name": "af_heart", "overall_grade": "A"},
+                {"id": "af_nicole", "name": "af_nicole"},
+                {"id": "am_adam", "name": "am_adam"},
+            ],
+            "default_voice": "af_heart",
+        }
+        mock_response.read.return_value = json.dumps(payload).encode()
+        mock_urlopen.return_value = mock_response
+
+        voice_ids, default_voice = kokoro.list_voices()
+        assert voice_ids == ["af_heart", "af_nicole", "am_adam"]
+        assert default_voice == "af_heart"
+
+    @patch("kokoro.request.urlopen")
+    def test_handles_legacy_list_shape(self, mock_urlopen):
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps(
+            ["af_heart", "af_nicole"]
+        ).encode()
+        mock_urlopen.return_value = mock_response
+
+        voice_ids, default_voice = kokoro.list_voices()
+        assert voice_ids == ["af_heart", "af_nicole"]
+        assert default_voice == kokoro.DEFAULT_VOICE
+
+    @patch("kokoro.request.urlopen")
+    def test_raises_on_http_error(self, mock_urlopen):
+        error = request.HTTPError(
+            "http://localhost:8880/v1/audio/voices", 500, "error",
+            {}, MagicMock()
+        )
+        error.read = lambda: b'{"error": "server down"}'
+        mock_urlopen.side_effect = error
+
+        with pytest.raises(RuntimeError) as exc_info:
+            kokoro.list_voices()
+        assert "500" in str(exc_info.value)
+
+
 class TestKokoroConfig:
     """Tests for module-level configuration."""
 

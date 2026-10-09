@@ -4,7 +4,6 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Literal
 
 import discord
 from discord.ext import commands
@@ -111,17 +110,31 @@ async def genvid(
 app.tree.add_command(genvid)
 
 
+# Discord allows at most 25 choices per parameter; voices beyond that can
+# still be typed in and are validated against the live list at call time.
+DISCORD_CHOICE_LIMIT = 25
+
+
 @app_commands.command(name="genspeech", description="Generate speech from text using Kokoro TTS.")
 @app_commands.describe(input="Text to convert to speech.", voice="Voice to speak with.")
 @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 async def genspeech(
     interaction: discord.Interaction,
     input: str,
-    voice: Literal["af_heart", "af_nicole"] = kokoro.DEFAULT_VOICE,
+    voice: str = kokoro.DEFAULT_VOICE,
 ):
     await interaction.response.defer(thinking=True)
+    loop = asyncio.get_running_loop()
     try:
-        loop = asyncio.get_running_loop()
+        available_voices, _ = await loop.run_in_executor(None, kokoro.list_voices)
+    except Exception:
+        available_voices = None
+    if available_voices is not None and voice not in available_voices:
+        await interaction.followup.send(
+            f"Voice '{voice}' is not available. Available voices: {', '.join(available_voices)}"
+        )
+        return
+    try:
         audio_data = await loop.run_in_executor(None, kokoro.generate_speech, input, voice)
     except Exception as e:
         await interaction.followup.send(f"Error communicating with Kokoro TTS: {e}")
@@ -143,11 +156,37 @@ async def genspeech(
 app.tree.add_command(genspeech)
 
 
+def _set_voice_choices(voice_ids):
+    """Attach the voice dropdown to genspeech (capped at Discord's limit).
+
+    discord.py derives parameters from the callback's annotations and does
+    not expose a public way to update choices after creation, so this sets
+    them on the underlying parameter definition before the tree is synced.
+    """
+    genspeech._params["voice"].choices = [
+        app_commands.Choice(name=v, value=v) for v in voice_ids[:DISCORD_CHOICE_LIMIT]
+    ]
+
+
 @app.event
 async def on_ready():
     logger.info("===== on_ready called! =====")
     logger.info("Logged in as %s", app.user)
     logger.info("In %d guilds", len(app.guilds))
+    loop = asyncio.get_running_loop()
+    try:
+        voice_ids, _ = await loop.run_in_executor(None, kokoro.list_voices)
+        _set_voice_choices(voice_ids)
+        logger.info(
+            "Loaded %d Kokoro voices (%d shown in dropdown)",
+            len(voice_ids), min(len(voice_ids), DISCORD_CHOICE_LIMIT),
+        )
+    except Exception:
+        logger.warning(
+            "Could not fetch the Kokoro voice list; using built-in fallback",
+            exc_info=True,
+        )
+        _set_voice_choices(kokoro.VOICES)
     await _set_presence()
     try:
         synced = await app.tree.sync()

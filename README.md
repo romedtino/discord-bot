@@ -47,8 +47,12 @@ Use `/genspeech` to generate speech with Kokoro TTS:
 /genspeech input: hello world voice: af_heart
 ```
 
-`voice` is a choice between `af_heart` (default) and `af_nicole`. The bot
-responds with the generated `speech.mp3` file.
+`voice` is a dropdown populated from the Kokoro server's
+`/v1/audio/voices` endpoint when the bot starts up. Discord caps a
+dropdown at 25 entries, so only the first 25 voices are listed — any
+other available voice can be typed in and is validated against the live
+list. `af_heart` is the default. The bot responds with the generated
+`speech.mp3` file.
 
 The Kokoro TTS server is expected at `192.168.1.59:8880`. To use a different
 host:
@@ -83,7 +87,7 @@ uv run pytest tests/ -v
 
 ```
 comfyui.py        - ComfyUI API logic (modify workflow, queue prompt, get images)
-kokoro.py         - Kokoro TTS API logic (OpenAI-compatible /v1/audio/speech)
+kokoro.py         - Kokoro TTS API logic (OpenAI-compatible /v1/audio/speech, /v1/audio/voices)
 bot.py            - Discord bot with /genimg command
 main.py           - Entry point (runs the bot)
 workflows/t2i.json - ComfyUI workflow (text-to-image with SaveImageWebsocket)
