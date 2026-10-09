@@ -47,12 +47,12 @@ Use `/genspeech` to generate speech with Kokoro TTS:
 /genspeech input: hello world voice: af_heart
 ```
 
-`voice` is a dropdown populated from the Kokoro server's
-`/v1/audio/voices` endpoint when the bot starts up. Discord caps a
-dropdown at 25 entries, so only the first 25 voices are listed — any
-other available voice can be typed in and is validated against the live
-list. `af_heart` is the default. The bot responds with the generated
-`speech.mp3` file.
+`voice` is an autocomplete field populated from the Kokoro server's
+`/v1/audio/voices` endpoint when the bot starts up. Discord only shows
+25 suggestions at a time, so type to filter down to any of the server's
+voices (e.g. `voice: pm_santa`) — any typed voice is accepted and
+validated against the live list. `af_heart` is the default. The bot
+responds with the generated `speech.mp3` file.
 
 The Kokoro TTS server is expected at `192.168.1.59:8880`. To use a different
 host:

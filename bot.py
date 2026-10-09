@@ -110,13 +110,18 @@ async def genvid(
 app.tree.add_command(genvid)
 
 
-# Discord allows at most 25 choices per parameter; voices beyond that can
-# still be typed in and are validated against the live list at call time.
-DISCORD_CHOICE_LIMIT = 25
+# Discord only shows 25 autocomplete suggestions per request, but unlike
+# static choices, a value the user types is accepted even when not
+# suggested, so every voice on the server stays usable.
+VOICE_SUGGESTION_LIMIT = 25
+
+# Voice ids fetched from the Kokoro server at startup, feeding the
+# /genspeech voice autocomplete.
+_VOICE_IDS: list[str] = []
 
 
 @app_commands.command(name="genspeech", description="Generate speech from text using Kokoro TTS.")
-@app_commands.describe(input="Text to convert to speech.", voice="Voice to speak with.")
+@app_commands.describe(input="Text to convert to speech.", voice="Kokoro voice id to speak with.")
 @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 async def genspeech(
     interaction: discord.Interaction,
@@ -153,40 +158,50 @@ async def genspeech(
         file=file,
     )
 
-app.tree.add_command(genspeech)
+@genspeech.autocomplete("voice")
+async def voice_autocomplete(interaction: discord.Interaction, current: str):
+    """Suggest Kokoro voices as the user types.
 
-
-def _set_voice_choices(voice_ids):
-    """Attach the voice dropdown to genspeech (capped at Discord's limit).
-
-    discord.py derives parameters from the callback's annotations and does
-    not expose a public way to update choices after creation, so this sets
-    them on the underlying parameter definition before the tree is synced.
+    Only up to 25 suggestions are returned per request (Discord's cap),
+    but any typed voice is still accepted — unknown voices are rejected
+    against the live server list when the command actually runs.
     """
-    genspeech._params["voice"].choices = [
-        app_commands.Choice(name=v, value=v) for v in voice_ids[:DISCORD_CHOICE_LIMIT]
+    voices = _VOICE_IDS
+    if not voices:
+        return []
+    query = current.lower()
+    if not query:
+        matches = voices
+    else:
+        prefix = [v for v in voices if v.lower().startswith(query)]
+        contains = [v for v in voices if v not in prefix and query in v.lower()]
+        matches = prefix + contains
+    return [
+        app_commands.Choice(name=v, value=v)
+        for v in matches[:VOICE_SUGGESTION_LIMIT]
     ]
+
+
+app.tree.add_command(genspeech)
 
 
 @app.event
 async def on_ready():
+    global _VOICE_IDS
     logger.info("===== on_ready called! =====")
     logger.info("Logged in as %s", app.user)
     logger.info("In %d guilds", len(app.guilds))
     loop = asyncio.get_running_loop()
     try:
         voice_ids, _ = await loop.run_in_executor(None, kokoro.list_voices)
-        _set_voice_choices(voice_ids)
-        logger.info(
-            "Loaded %d Kokoro voices (%d shown in dropdown)",
-            len(voice_ids), min(len(voice_ids), DISCORD_CHOICE_LIMIT),
-        )
+        _VOICE_IDS = voice_ids
+        logger.info("Loaded %d Kokoro voices for autocomplete", len(voice_ids))
     except Exception:
         logger.warning(
             "Could not fetch the Kokoro voice list; using built-in fallback",
             exc_info=True,
         )
-        _set_voice_choices(kokoro.VOICES)
+        _VOICE_IDS = list(kokoro.VOICES)
     await _set_presence()
     try:
         synced = await app.tree.sync()
