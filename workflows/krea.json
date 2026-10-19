@@ -91,7 +91,8 @@
   "21": {
     "inputs": {
       "vae_name": "Wan2.1_VAE_upscale2x_imageonly_real_v1.safetensors",
-      "disable_offload": false
+      "disable_offload": false,
+      "precision": "auto"
     },
     "class_type": "VAEUtils_CustomVAELoader",
     "_meta": {
