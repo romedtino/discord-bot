@@ -9,7 +9,9 @@
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "CLIP Text Encode (Prompt)"
+      "title": "CLIP Text Encode (Prompt)",
+      "cnr_id": "comfy-core",
+      "ver": "0.25.0"
     }
   },
   "2": {
@@ -39,7 +41,9 @@
     },
     "class_type": "KSampler",
     "_meta": {
-      "title": "KSampler"
+      "title": "KSampler",
+      "cnr_id": "comfy-core",
+      "ver": "0.25.0"
     }
   },
   "3": {
@@ -50,7 +54,9 @@
     },
     "class_type": "EmptyLatentImage",
     "_meta": {
-      "title": "Empty Latent Image"
+      "title": "Empty Latent Image",
+      "cnr_id": "comfy-core",
+      "ver": "0.25.0"
     }
   },
   "4": {
@@ -63,7 +69,9 @@
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "CLIP Text Encode (Prompt)"
+      "title": "CLIP Text Encode (Prompt)",
+      "cnr_id": "comfy-core",
+      "ver": "0.25.0"
     }
   },
   "20": {
@@ -85,7 +93,9 @@
     },
     "class_type": "VAEUtils_VAEDecodeTiled",
     "_meta": {
-      "title": "VAE Decode (VAE Utils)"
+      "title": "VAE Decode (VAE Utils)",
+      "aux_id": "spacepxl/ComfyUI-VAE-Utils",
+      "ver": "d69e7afaa9edc3cd99096dc063ec37e71b2d1184"
     }
   },
   "21": {
@@ -96,7 +106,9 @@
     },
     "class_type": "VAEUtils_CustomVAELoader",
     "_meta": {
-      "title": "Load VAE (VAE Utils)"
+      "title": "Load VAE (VAE Utils)",
+      "aux_id": "spacepxl/ComfyUI-VAE-Utils",
+      "ver": "d69e7afaa9edc3cd99096dc063ec37e71b2d1184"
     }
   },
   "23": {
@@ -105,7 +117,9 @@
     },
     "class_type": "UnetLoaderGGUF",
     "_meta": {
-      "title": "Unet Loader (GGUF)"
+      "title": "Unet Loader (GGUF)",
+      "cnr_id": "comfyui-gguf",
+      "ver": "1.1.10"
     }
   },
   "25": {
@@ -128,7 +142,9 @@
     },
     "class_type": "CLIPLoader",
     "_meta": {
-      "title": "Load CLIP"
+      "title": "Load CLIP",
+      "cnr_id": "comfy-core",
+      "ver": "0.28.0"
     }
   }
 }
