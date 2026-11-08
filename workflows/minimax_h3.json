@@ -82,7 +82,7 @@
       "stream": false,
       "max_tokens": 0,
       "temperature": 0.8,
-      "seed": 22,
+      "seed": -1,
       "json_mode": false,
       "unload_after_generate": false,
       "text_postprocess": "fix_mojibake",
